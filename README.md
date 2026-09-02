@@ -1,4 +1,4 @@
-# Color Wheel Creator
+# Color Wheel Designer
 
 [Try it here!](https://cosmicgraviton.github.io/ColorWheelCreator/)
 
