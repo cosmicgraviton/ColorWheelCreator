@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Color Wheel Designer</title>
+<link rel="icon" href="favicon.ico" type="image/x-icon" sizes="any">
+<link rel="shortcut icon" href="favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-canvas: #0e0f12;
+    --bg-inspector: #16181d;
+    --bg-header: #12141a;
+    --bg-card: #1c1f26;
+    --border: #2a2e36;
+    --text: #e8eaed;
+    --muted: #9aa3b2;
+    --accent: #e8b86d;
+    --accent-dim: rgba(232, 184, 109, 0.16);
+    --lift: #232833;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-family: "Instrument Sans", ui-sans-serif, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg-canvas);
+    color: var(--text);
+  }
+  button, select, input { font-family: inherit; }
+
+  header.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 16px;
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .wordmark {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text);
+  }
+  .toolbar {
+    display: flex;
+    gap: 6px;
+  }
+  .tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .tool-btn:hover { background: var(--lift); }
+  .tool-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .workspace {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+
+  #wheel-container {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 28px 20px 36px;
+    background:
+      radial-gradient(ellipse at 50% 46%, rgba(232, 184, 109, 0.07), transparent 42%),
+      var(--bg-canvas);
+  }
+  .history-overlay {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    display: flex;
+    gap: 6px;
+  }
+  .ghost-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: rgba(22, 24, 29, 0.72);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+  }
+  .ghost-btn:hover:not(:disabled) { background: var(--lift); }
+  .ghost-btn:disabled { opacity: 0.35; cursor: default; }
+  .ghost-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .canvas-hint {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.02em;
+  }
+  #wheel { filter: drop-shadow(0 18px 40px rgba(0,0,0,0.55)); }
+
+  #inspector {
+    width: 320px;
+    flex-shrink: 0;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    background: var(--bg-inspector);
+    border-left: 1px solid var(--border);
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+  }
+  .card h2 {
+    margin: 0 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .paint-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+  .geom-card { flex: 0 1 auto; overflow: auto; max-height: 42%; }
+  .align-card { flex: 0 0 auto; }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .row:last-child { margin-bottom: 0; }
+  .row label { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+  select, input[type="text"] {
+    flex: 1;
+    padding: 6px 8px;
+    background: #12141a;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    outline: none;
+    font-size: 13px;
+  }
+  select { cursor: pointer; }
+  select:focus, input[type="text"]:focus { border-color: var(--accent); }
+  input[type="range"] { flex: 1; cursor: pointer; accent-color: var(--accent); }
+
+  .paint-actions { display: flex; gap: 6px; margin-bottom: 8px; }
+  .action-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 10px;
+    background: #12141a;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .action-btn:hover { background: var(--lift); }
+
+  #swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 2px;
+    margin-bottom: 8px;
+  }
+  .swatch {
+    aspect-ratio: 1;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 0;
+    min-height: 24px;
+    background: none;
+  }
+  .swatch.active {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .active-color-row { margin-bottom: 0; }
+  .picker-wrap { position: relative; flex-shrink: 0; }
+  #color-picker {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .picker-btn {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    cursor: pointer;
+    background: conic-gradient(
+      #e6194b, #f58231, #ffe119, #3cb44b, #42d4f4, #4363d8, #911eb4, #f032e6, #e6194b
+    );
+  }
+  .picker-btn::after {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    background: var(--bg-card);
+  }
+  .picker-btn:hover { filter: brightness(1.12); }
+  #hex-input {
+    width: 88px;
+    flex: 1;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 12px;
+  }
+  #paint-preview {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  #paint-preview.active {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .seg-group { display: flex; gap: 4px; flex: 1; }
+  .seg-btn {
+    flex: 1;
+    padding: 6px 8px;
+    background: #12141a;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .seg-btn.active {
+    background: var(--accent-dim);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .seg-btn:hover:not(.active) { background: var(--lift); }
+
+  .toggle-row { justify-content: space-between; }
+  .toggle-row input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .control-group label { width: 118px; flex-shrink: 0; color: var(--muted); }
+  .control-group select { flex: 1; }
+
+  .segment-path { cursor: pointer; transition: opacity 0.15s, stroke-width 0.15s; }
+  .segment-path:hover { opacity: 0.82; stroke-width: 3 !important; }
+  .notch-path { pointer-events: none; }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #3a404c; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1 class="wordmark">Color Wheel Designer</h1>
+  <div class="toolbar">
+    <button class="tool-btn" id="save-json-btn" title="Save wheel data">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Save
+    </button>
+    <button class="tool-btn" id="open-json-btn" title="Open a saved wheel">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+      Open
+    </button>
+    <button class="tool-btn" id="export-btn" title="Export as SVG or PNG">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      Export
+    </button>
+    <button class="tool-btn" id="print-btn" title="Print at 16 cm on a blank page (use 100% scale)">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 9V2h12v7"/>
+        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+        <rect x="6" y="14" width="12" height="8"/>
+      </svg>
+      Print
+    </button>
+  </div>
+</header>
+<input type="file" id="open-json-input" accept=".json" hidden>
+
+<div class="workspace">
+  <div id="wheel-container">
+    <div class="history-overlay">
+      <button class="ghost-btn" id="undo-btn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+      </button>
+      <button class="ghost-btn" id="redo-btn" title="Redo (Ctrl+Shift+Z or Ctrl+Y)" aria-label="Redo" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+      </button>
+    </div>
+    <svg id="wheel" width="600" height="600" viewBox="0 0 600 600" style="overflow: visible;">
+      <g id="segments-group"></g>
+      <g id="notches-group" visibility="visible"></g>
+    </svg>
+    <p class="canvas-hint">Click to paint · Shift-click to sample</p>
+  </div>
+
+  <aside id="inspector">
+    <section class="card paint-card">
+      <h2>Paint</h2>
+      <div class="row">
+        <label for="palette-select">Palette</label>
+        <select id="palette-select"></select>
+      </div>
+      <div class="paint-actions">
+        <button type="button" class="action-btn" id="fill-wheel-btn" title="Paint the palette in order, outside in">Fill wheel</button>
+        <button type="button" class="action-btn" id="clear-wheel-btn" title="Set every segment to white, including hidden ones">Clear wheel</button>
+        <button type="button" class="action-btn" id="migrate-palette-btn" title="Snap each existing color to the nearest color in the selected palette">Migrate</button>
+      </div>
+      <div id="swatch-grid"></div>
+      <div class="row active-color-row">
+        <div class="picker-wrap">
+          <button type="button" class="picker-btn" id="picker-btn" title="Pick a custom color" aria-label="Pick a custom color"></button>
+          <input type="color" id="color-picker" value="#e6194b" tabindex="-1" aria-hidden="true">
+        </div>
+        <input type="text" id="hex-input" value="#E6194B" maxlength="7" spellcheck="false" title="Hex color" aria-label="Hex color">
+        <div id="paint-preview" title="Active paint color"></div>
+      </div>
+    </section>
+
+    <section class="card geom-card">
+      <h2>Geometry</h2>
+      <div class="row">
+        <label>Layout</label>
+        <div class="seg-group" id="geometry-seg">
+          <button type="button" class="seg-btn active" data-geometry="concentric">Circles</button>
+          <button type="button" class="seg-btn" data-geometry="spiral">Spiral</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Direction</label>
+        <div class="seg-group" id="direction-seg">
+          <button type="button" class="seg-btn active" data-direction="cw">Clockwise</button>
+          <button type="button" class="seg-btn" data-direction="ccw">Anticlockwise</button>
+        </div>
+      </div>
+      <div id="concentric-controls">
+        <div class="control-group">
+          <label for="ring-count-select">Rings</label>
+          <select id="ring-count-select">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4" selected>4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+          </select>
+        </div>
+        <div id="ring-config-controls"></div>
+      </div>
+      <div id="spiral-controls" hidden>
+        <div class="row">
+          <label for="spiral-slider">Segments <span id="spiral-count-label">40</span></label>
+          <input type="range" id="spiral-slider" min="12" max="96" value="40" step="1">
+        </div>
+        <div class="row">
+          <label>Spacing</label>
+          <div class="seg-group" id="spacing-seg">
+            <button type="button" class="seg-btn active" data-spacing="angle">Equal angle</button>
+            <button type="button" class="seg-btn" data-spacing="length">Equal length</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card align-card">
+      <h2>Overlay</h2>
+      <div class="row toggle-row">
+        <label for="show-notches-cb">Show white notches</label>
+        <input type="checkbox" id="show-notches-cb" checked>
+      </div>
+      <div class="row toggle-row">
+        <label for="show-borders-cb">Show segment borders</label>
+        <input type="checkbox" id="show-borders-cb" checked>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<script>
+  const WHITE = "#FFFFFF";
+  const BLACK = "#000000";
+  const OUTER_R = 300;
+  const SEGMENT_OPTIONS = [1, 2, 3, 4, 6, 8, 12, 16, 20, 24, 32];
+  const DEFAULT_RING_COUNTS = [16, 12, 8, 4, 4, 3, 2, 2];
+  const MAX_RINGS = 8;
+  const SPIRAL_MIN = 12;
+  const SPIRAL_MAX = 96;
+  const MAX_HISTORY = 10;
+  const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+
+  function hsvToHex(h, s, v) {
+    const c = v * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = v - c;
+    let r = 0, g = 0, b = 0;
+    if (h < 60) { r = c; g = x; }
+    else if (h < 120) { r = x; g = c; }
+    else if (h < 180) { g = c; b = x; }
+    else if (h < 240) { g = x; b = c; }
+    else if (h < 300) { r = x; b = c; }
+    else { r = c; b = x; }
+    const toByte = (n) => Math.round((n + m) * 255).toString(16).padStart(2, "0").toUpperCase();
+    return "#" + toByte(r) + toByte(g) + toByte(b);
+  }
+
+  function buildHsv8x4() {
+    const hues = [
+      { name: "Red", h: 0 },
+      { name: "Orange", h: 30 },
+      { name: "Yellow", h: 60 },
+      { name: "Green", h: 120 },
+      { name: "Cyan", h: 180 },
+      { name: "Blue", h: 240 },
+      { name: "Purple", h: 270 },
+      { name: "Magenta", h: 300 }
+    ];
+    const values = [
+      { label: "100%", v: 1.0 },
+      { label: "75%", v: 0.75 },
+      { label: "50%", v: 0.5 },
+      { label: "30%", v: 0.3 }
+    ];
+    const colors = [];
+    hues.forEach((hue) => {
+      values.forEach((val) => {
+        colors.push({ name: hue.name + " " + val.label, hex: hsvToHex(hue.h, 1, val.v) });
+      });
+    });
+    return colors;
+  }
+
+  function bookendBlackWhite(colors) {
+    const middle = colors.filter((c) => {
+      const hex = String(c.hex).toUpperCase();
+      return hex !== BLACK && hex !== WHITE;
+    });
+    return middle.concat([{ name: "White", hex: WHITE }, { name: "Black", hex: BLACK }]);
+  }
+
+  const PALETTES = {
+    sasha: {
+      name: "Sasha Trubetskoy 20 + B&W",
+      colors: bookendBlackWhite([
+        { name: "Black", hex: "#000000" },
+        { name: "White", hex: "#FFFFFF" },
+        { name: "Red", hex: "#E6194B" },
+        { name: "Green", hex: "#3CB44B" },
+        { name: "Yellow", hex: "#FFE119" },
+        { name: "Blue", hex: "#4363D8" },
+        { name: "Orange", hex: "#F58231" },
+        { name: "Purple", hex: "#911EB4" },
+        { name: "Cyan", hex: "#42D4F4" },
+        { name: "Magenta", hex: "#F032E6" },
+        { name: "Lime", hex: "#BFEF45" },
+        { name: "Pink", hex: "#FABED4" },
+        { name: "Teal", hex: "#469990" },
+        { name: "Lavender", hex: "#DCBEFF" },
+        { name: "Brown", hex: "#9A6324" },
+        { name: "Beige", hex: "#FFFAC8" },
+        { name: "Maroon", hex: "#800000" },
+        { name: "Mint", hex: "#AAFFC3" },
+        { name: "Olive", hex: "#808000" },
+        { name: "Apricot", hex: "#FFD8B1" },
+        { name: "Navy", hex: "#000075" },
+        { name: "Grey", hex: "#A9A9A9" }
+      ])
+    },
+    hsv8x4: {
+      name: "HSV Color Picker (8×4)",
+      colors: bookendBlackWhite(buildHsv8x4())
+    },
+    kelly: {
+      name: "Kelly's 22 of Maximum Contrast",
+      colors: bookendBlackWhite([
+        { name: "White", hex: "#F2F3F4" },
+        { name: "Black", hex: "#222222" },
+        { name: "Yellow", hex: "#F3C300" },
+        { name: "Purple", hex: "#875692" },
+        { name: "Orange", hex: "#F38400" },
+        { name: "Light Blue", hex: "#A1CAF1" },
+        { name: "Red", hex: "#BE0032" },
+        { name: "Buff", hex: "#C2B280" },
+        { name: "Grey", hex: "#848482" },
+        { name: "Green", hex: "#008856" },
+        { name: "Purplish Pink", hex: "#E68FAC" },
+        { name: "Blue", hex: "#0067A5" },
+        { name: "Yellowish Pink", hex: "#F99379" },
+        { name: "Violet", hex: "#604E97" },
+        { name: "Orange Yellow", hex: "#F6A600" },
+        { name: "Purplish Red", hex: "#B3446C" },
+        { name: "Greenish Yellow", hex: "#DCD300" },
+        { name: "Reddish Brown", hex: "#882D17" },
+        { name: "Yellow Green", hex: "#8DB600" },
+        { name: "Yellowish Brown", hex: "#654522" },
+        { name: "Reddish Orange", hex: "#E25822" },
+        { name: "Olive Green", hex: "#2B3D26" }
+      ])
+    },
+    tableau20: {
+      name: "Tableau 20",
+      colors: bookendBlackWhite([
+        { name: "Blue", hex: "#1F77B4" },
+        { name: "Light Blue", hex: "#AEC7E8" },
+        { name: "Orange", hex: "#FF7F0E" },
+        { name: "Light Orange", hex: "#FFBB78" },
+        { name: "Green", hex: "#2CA02C" },
+        { name: "Light Green", hex: "#98DF8A" },
+        { name: "Red", hex: "#D62728" },
+        { name: "Light Red", hex: "#FF9896" },
+        { name: "Purple", hex: "#9467BD" },
+        { name: "Light Purple", hex: "#C5B0D5" },
+        { name: "Brown", hex: "#8C564B" },
+        { name: "Light Brown", hex: "#C49C94" },
+        { name: "Pink", hex: "#E377C2" },
+        { name: "Light Pink", hex: "#F7B6D2" },
+        { name: "Grey", hex: "#7F7F7F" },
+        { name: "Light Grey", hex: "#C7C7C7" },
+        { name: "Olive", hex: "#BCBD22" },
+        { name: "Light Olive", hex: "#DBDB8D" },
+        { name: "Cyan", hex: "#17BECF" },
+        { name: "Light Cyan", hex: "#9EDAE5" }
+      ])
+    }
+  };
+
+  function createDefaultRings() {
+    return DEFAULT_RING_COUNTS.slice(0, 4).map((segmentCount) => ({
+      segmentCount: segmentCount,
+      colors: []
+    }));
+  }
+
+  let state = {
+    geometry: "concentric",
+    ringCount: 4,
+    rings: createDefaultRings(),
+    spiralSegmentCount: 40,
+    spiralColors: [],
+    clockwise: true,
+    spiralSpacing: "angle",
+    paletteId: "sasha",
+    showNotches: true,
+    showBorders: true
+  };
+
+  let activePaintHex = "#E6194B";
+  const history = [];
+  const redoStack = [];
+  let spiralSliderHistoryPushed = false;
+
+  const segmentsGroup = document.getElementById("segments-group");
+  const notchesGroup = document.getElementById("notches-group");
+  const showNotchesCb = document.getElementById("show-notches-cb");
+  const showBordersCb = document.getElementById("show-borders-cb");
+  const paletteSelect = document.getElementById("palette-select");
+  const openJsonInput = document.getElementById("open-json-input");
+  const ringCountSelect = document.getElementById("ring-count-select");
+  const ringConfigControls = document.getElementById("ring-config-controls");
+  const concentricControls = document.getElementById("concentric-controls");
+  const spiralControls = document.getElementById("spiral-controls");
+  const spiralSlider = document.getElementById("spiral-slider");
+  const spiralCountLabel = document.getElementById("spiral-count-label");
+  const swatchGrid = document.getElementById("swatch-grid");
+  const colorPicker = document.getElementById("color-picker");
+  const pickerBtn = document.getElementById("picker-btn");
+  const hexInput = document.getElementById("hex-input");
+  const paintPreview = document.getElementById("paint-preview");
+  const undoBtn = document.getElementById("undo-btn");
+  const redoBtn = document.getElementById("redo-btn");
+  const cx = OUTER_R, cy = OUTER_R;
+
+  function normalizeHex(hex) {
+    if (typeof hex !== "string") return WHITE;
+    const trimmed = hex.trim();
+    if (!HEX_RE.test(trimmed)) return WHITE;
+    return "#" + trimmed.slice(1).toUpperCase();
+  }
+
+  function normalizeColorList(colors, minLength) {
+    const source = Array.isArray(colors) ? colors : [];
+    const count = Math.max(source.length, minLength || 0);
+    const out = [];
+    for (let i = 0; i < count; i++) out.push(normalizeHex(source[i]));
+    return out;
+  }
+
+  function getActivePalette() {
+    return PALETTES[state.paletteId] || PALETTES.sasha;
+  }
+
+  function ensureRing(index) {
+    while (state.rings.length <= index) {
+      const i = state.rings.length;
+      state.rings.push({
+        segmentCount: DEFAULT_RING_COUNTS[i] || 2,
+        colors: []
+      });
+    }
+  }
+
+  function ringLabel(index, ringCount) {
+    if (ringCount === 1) return "Ring 1";
+    if (index === 0) return "Ring 1 (Outer)";
+    if (index === ringCount - 1) return "Ring " + (index + 1) + " (Inner)";
+    return "Ring " + (index + 1);
+  }
+
+  function getRingRadii(ringCount) {
+    const rings = [];
+    for (let i = 0; i < ringCount; i++) {
+      rings.push({
+        name: ringLabel(i, ringCount),
+        r2: OUTER_R * (ringCount - i) / ringCount,
+        r1: OUTER_R * (ringCount - i - 1) / ringCount
+      });
+    }
+    return rings;
+  }
+
+  function getStoredHex(arr, index) {
+    const stored = arr && arr[index];
+    return stored ? normalizeHex(stored) : WHITE;
+  }
+
+  function getSegmentHex(ringIndex, segmentIndex) {
+    const ring = state.rings[ringIndex];
+    return getStoredHex(ring && ring.colors, segmentIndex);
+  }
+
+  function getSpiralHex(index) {
+    return getStoredHex(state.spiralColors, index);
+  }
+
+  function findColorInfo(hex) {
+    const norm = normalizeHex(hex);
+    const found = getActivePalette().colors.find((c) => normalizeHex(c.hex) === norm);
+    if (found) return found;
+    return { name: "Custom (" + norm + ")", hex: norm };
+  }
+
+  function hexToRgb(hex) {
+    const h = normalizeHex(hex).slice(1);
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16)
+    };
+  }
+
+  function srgbToLinear(c) {
+    const n = c / 255;
+    return n <= 0.04045 ? n / 12.92 : Math.pow((n + 0.055) / 1.055, 2.4);
+  }
+
+  function rgbToLab(r, g, b) {
+    const R = srgbToLinear(r);
+    const G = srgbToLinear(g);
+    const B = srgbToLinear(b);
+    let x = R * 0.4124564 + G * 0.3575761 + B * 0.1804375;
+    let y = R * 0.2126729 + G * 0.7151522 + B * 0.0721750;
+    let z = R * 0.0193339 + G * 0.1191920 + B * 0.9503041;
+    x /= 0.95047;
+    y /= 1.00000;
+    z /= 1.08883;
+    const f = (t) => t > 0.008856 ? Math.cbrt(t) : (7.787 * t + 16 / 116);
+    const fx = f(x), fy = f(y), fz = f(z);
+    return { L: 116 * fy - 16, a: 500 * (fx - fy), b: 200 * (fy - fz) };
+  }
+
+  function deltaE76(hex1, hex2) {
+    const c1 = hexToRgb(hex1);
+    const c2 = hexToRgb(hex2);
+    const lab1 = rgbToLab(c1.r, c1.g, c1.b);
+    const lab2 = rgbToLab(c2.r, c2.g, c2.b);
+    const dL = lab1.L - lab2.L;
+    const da = lab1.a - lab2.a;
+    const db = lab1.b - lab2.b;
+    return Math.sqrt(dL * dL + da * da + db * db);
+  }
+
+  function nearestPaletteHex(hex, palette) {
+    const target = normalizeHex(hex);
+    const exact = palette.colors.find((c) => normalizeHex(c.hex) === target);
+    if (exact) return normalizeHex(exact.hex);
+    let bestHex = normalizeHex(palette.colors[0].hex);
+    let bestD = Infinity;
+    palette.colors.forEach((c) => {
+      const d = deltaE76(target, c.hex);
+      if (d < bestD) {
+        bestD = d;
+        bestHex = normalizeHex(c.hex);
+      }
+    });
+    return bestHex;
+  }
+
+  function polarToCartesian(centerX, centerY, r, angleInDegrees) {
+    const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+    return {
+      x: centerX + (r * Math.cos(angleInRadians)),
+      y: centerY + (r * Math.sin(angleInRadians))
+    };
+  }
+
+  function describeFullRing(x, y, radius1, radius2) {
+    if (radius1 === 0) {
+      return [
+        "M", x, y - radius2,
+        "A", radius2, radius2, 0, 1, 1, x, y + radius2,
+        "A", radius2, radius2, 0, 1, 1, x, y - radius2,
+        "Z"
+      ].join(" ");
+    }
+    return [
+      "M", x, y - radius2,
+      "A", radius2, radius2, 0, 1, 1, x, y + radius2,
+      "A", radius2, radius2, 0, 1, 1, x, y - radius2,
+      "Z",
+      "M", x, y - radius1,
+      "A", radius1, radius1, 0, 1, 0, x, y + radius1,
+      "A", radius1, radius1, 0, 1, 0, x, y - radius1,
+      "Z"
+    ].join(" ");
+  }
+
+  function describeArc(x, y, radius1, radius2, startAngle, endAngle){
+      if (Math.abs(endAngle - startAngle) >= 359.999) {
+          return describeFullRing(x, y, radius1, radius2);
+      }
+      const a0 = Math.min(startAngle, endAngle);
+      const a1 = Math.max(startAngle, endAngle);
+      const outerStart = polarToCartesian(x, y, radius2, a1);
+      const outerEnd = polarToCartesian(x, y, radius2, a0);
+      const largeArcFlag = a1 - a0 <= 180 ? "0" : "1";
+
+      if (radius1 === 0) {
+          return [
+              "M", outerStart.x, outerStart.y,
+              "A", radius2, radius2, 0, largeArcFlag, 0, outerEnd.x, outerEnd.y,
+              "L", x, y,
+              "Z"
+          ].join(" ");
+      }
+      const innerStart = polarToCartesian(x, y, radius1, a1);
+      const innerEnd = polarToCartesian(x, y, radius1, a0);
+      return [
+          "M", outerStart.x, outerStart.y,
+          "A", radius2, radius2, 0, largeArcFlag, 0, outerEnd.x, outerEnd.y,
+          "L", innerEnd.x, innerEnd.y,
+          "A", radius1, radius1, 0, largeArcFlag, 1, innerStart.x, innerStart.y,
+          "Z"
+      ].join(" ");
+  }
+
+  function spiralTurns(segmentCount) {
+    const raw = Math.round(Math.sqrt(segmentCount / Math.PI));
+    return Math.max(2, Math.min(8, raw));
+  }
+
+  function spiralRadiusOuter(thetaRad, thetaMax) {
+    return OUTER_R * (1 - thetaRad / thetaMax);
+  }
+
+  function spiralRadiusInner(thetaRad, thetaMax, width) {
+    return Math.max(0, spiralRadiusOuter(thetaRad, thetaMax) - width);
+  }
+
+  function spiralThetaForEqualLength(index, count, thetaMax) {
+    return thetaMax * (1 - Math.sqrt(1 - index / count));
+  }
+
+  function describeSpiralSegment(theta0, theta1, thetaMax, width, inverted) {
+    const samples = Math.max(8, Math.ceil(Math.abs(theta1 - theta0) * 10));
+    const dir = inverted ? -1 : 1;
+    const outerPts = [];
+    const innerPts = [];
+    for (let s = 0; s <= samples; s++) {
+      const t = theta0 + (theta1 - theta0) * (s / samples);
+      const deg = dir * t * 180 / Math.PI;
+      outerPts.push(polarToCartesian(cx, cy, spiralRadiusOuter(t, thetaMax), deg));
+      innerPts.push(polarToCartesian(cx, cy, spiralRadiusInner(t, thetaMax, width), deg));
+    }
+    let d = "M " + outerPts[0].x + " " + outerPts[0].y;
+    for (let i = 1; i < outerPts.length; i++) d += " L " + outerPts[i].x + " " + outerPts[i].y;
+    for (let i = innerPts.length - 1; i >= 0; i--) d += " L " + innerPts[i].x + " " + innerPts[i].y;
+    return d + " Z";
+  }
+
+  function serializeState() {
+    return {
+      version: 1,
+      geometry: state.geometry,
+      ringCount: state.ringCount,
+      rings: state.rings.map((ring) => ({
+        segmentCount: ring.segmentCount,
+        colors: normalizeColorList(ring.colors, ring.segmentCount)
+      })),
+      spiralSegmentCount: state.spiralSegmentCount,
+      spiralColors: normalizeColorList(state.spiralColors, state.spiralSegmentCount),
+      clockwise: state.clockwise !== false,
+      spiralSpacing: state.spiralSpacing,
+      paletteId: state.paletteId,
+      showNotches: state.showNotches,
+      showBorders: state.showBorders !== false
+    };
+  }
+
+  function cloneWheelState() {
+    return JSON.parse(JSON.stringify(serializeState()));
+  }
+
+  function restoreWheelState(snapshot) {
+    state.geometry = snapshot.geometry;
+    state.ringCount = snapshot.ringCount;
+    state.rings = snapshot.rings;
+    state.spiralSegmentCount = snapshot.spiralSegmentCount;
+    state.spiralColors = snapshot.spiralColors;
+    state.clockwise = snapshot.clockwise !== false;
+    state.spiralSpacing = snapshot.spiralSpacing === "length" ? "length" : "angle";
+    state.paletteId = PALETTES[snapshot.paletteId] ? snapshot.paletteId : "sasha";
+    state.showNotches = snapshot.showNotches !== false;
+    state.showBorders = snapshot.showBorders !== false;
+  }
+
+  function updateHistoryButtons() {
+    undoBtn.disabled = history.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+
+  function pushHistory() {
+    history.push(cloneWheelState());
+    if (history.length > MAX_HISTORY) history.shift();
+    redoStack.length = 0;
+    updateHistoryButtons();
+  }
+
+  function applyHistory(fromStack, toStack) {
+    if (!fromStack.length) return;
+    toStack.push(cloneWheelState());
+    if (toStack.length > MAX_HISTORY) toStack.shift();
+    restoreWheelState(fromStack.pop());
+    buildWheel();
+    renderSwatches();
+    updateHistoryButtons();
+  }
+
+  function undoLastChange() {
+    applyHistory(history, redoStack);
+  }
+
+  function redoLastChange() {
+    applyHistory(redoStack, history);
+  }
+
+  function setActivePaintHex(hex) {
+    activePaintHex = normalizeHex(hex);
+    colorPicker.value = activePaintHex.toLowerCase();
+    hexInput.value = activePaintHex;
+    paintPreview.style.background = activePaintHex;
+    highlightActiveSwatch();
+  }
+
+  function isPaintInPalette() {
+    return getActivePalette().colors.some((c) => normalizeHex(c.hex) === activePaintHex);
+  }
+
+  function highlightActiveSwatch() {
+    const inPalette = isPaintInPalette();
+    swatchGrid.querySelectorAll(".swatch").forEach((btn) => {
+      btn.classList.toggle("active", normalizeHex(btn.dataset.hex) === activePaintHex);
+    });
+    paintPreview.classList.toggle("active", !inPalette);
+    paintPreview.title = inPalette ? "Active paint color" : "Custom color (not in palette)";
+  }
+
+  function renderSwatches() {
+    swatchGrid.innerHTML = "";
+    getActivePalette().colors.forEach((c) => {
+      const hex = normalizeHex(c.hex);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "swatch";
+      btn.style.background = hex;
+      btn.dataset.hex = hex;
+      btn.title = c.name + " (" + hex + ")";
+      btn.addEventListener("click", function() {
+        setActivePaintHex(hex);
+      });
+      swatchGrid.appendChild(btn);
+    });
+    highlightActiveSwatch();
+  }
+
+  function setSegActive(groupId, attr, value) {
+    document.querySelectorAll("#" + groupId + " .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute(attr) === value);
+    });
+  }
+
+  function bindSegGroup(groupId, attr, isCurrent, applyValue, refreshControls) {
+    document.querySelectorAll("#" + groupId + " .seg-btn").forEach((btn) => {
+      btn.addEventListener("click", function() {
+        const raw = this.getAttribute(attr);
+        if (isCurrent(raw)) return;
+        pushHistory();
+        applyValue(raw);
+        if (refreshControls) buildWheel();
+        else {
+          setSegActive(groupId, attr, raw);
+          rebuildSvg();
+        }
+      });
+    });
+  }
+
+  function renderRingSelects() {
+    ringConfigControls.innerHTML = "";
+    for (let i = 0; i < state.ringCount; i++) {
+      ensureRing(i);
+      const div = document.createElement("div");
+      div.className = "control-group";
+      const label = document.createElement("label");
+      label.textContent = ringLabel(i, state.ringCount);
+      const select = document.createElement("select");
+      select.dataset.ringIndex = String(i);
+      SEGMENT_OPTIONS.forEach((n) => {
+        const option = document.createElement("option");
+        option.value = String(n);
+        option.textContent = String(n);
+        if (n === state.rings[i].segmentCount) option.selected = true;
+        select.appendChild(option);
+      });
+      select.addEventListener("change", function() {
+        const ringIndex = parseInt(this.dataset.ringIndex, 10);
+        pushHistory();
+        state.rings[ringIndex].segmentCount = parseInt(this.value, 10);
+        rebuildSvg();
+      });
+      div.appendChild(label);
+      div.appendChild(select);
+      ringConfigControls.appendChild(div);
+    }
+  }
+
+  function syncControlsFromState() {
+    paletteSelect.value = PALETTES[state.paletteId] ? state.paletteId : "sasha";
+    showNotchesCb.checked = state.showNotches;
+    showBordersCb.checked = state.showBorders !== false;
+    notchesGroup.setAttribute("visibility", state.showNotches ? "visible" : "hidden");
+    setSegActive("geometry-seg", "data-geometry", state.geometry);
+    ringCountSelect.value = String(state.ringCount);
+    spiralSlider.value = String(state.spiralSegmentCount);
+    spiralCountLabel.textContent = String(state.spiralSegmentCount);
+    setSegActive("direction-seg", "data-direction", state.clockwise === false ? "ccw" : "cw");
+    setSegActive("spacing-seg", "data-spacing", state.spiralSpacing);
+    concentricControls.hidden = state.geometry !== "concentric";
+    spiralControls.hidden = state.geometry !== "spiral";
+    if (state.geometry === "concentric") renderRingSelects();
+  }
+
+  function populatePaletteSelect() {
+    paletteSelect.innerHTML = "";
+    Object.keys(PALETTES).forEach((id) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = PALETTES[id].name;
+      paletteSelect.appendChild(option);
+    });
+    paletteSelect.value = state.paletteId;
+  }
+
+  function fillColorList(arr, count, palette, startIdx) {
+    for (let i = 0; i < count; i++) {
+      arr[i] = palette[(startIdx + i) % palette.length].hex;
+    }
+    return startIdx + count;
+  }
+
+  function fillConcentricVisible() {
+    const palette = getActivePalette().colors;
+    let idx = 0;
+    for (let r = 0; r < state.ringCount; r++) {
+      ensureRing(r);
+      idx = fillColorList(state.rings[r].colors, state.rings[r].segmentCount, palette, idx);
+    }
+  }
+
+  function fillSpiralVisible() {
+    fillColorList(state.spiralColors, state.spiralSegmentCount, getActivePalette().colors, 0);
+  }
+
+  function fillVisibleFromPalette() {
+    if (state.geometry === "spiral") fillSpiralVisible();
+    else fillConcentricVisible();
+  }
+
+  function forEachColorSlot(fn) {
+    state.rings.forEach((ring) => {
+      for (let i = 0; i < ring.colors.length; i++) fn(ring.colors, i);
+    });
+    for (let i = 0; i < state.spiralColors.length; i++) fn(state.spiralColors, i);
+  }
+
+  function clearAllWheelColors() {
+    forEachColorSlot(function(arr, i) { arr[i] = WHITE; });
+  }
+
+  function migrateToSelectedPalette() {
+    const palette = getActivePalette();
+    forEachColorSlot(function(arr, i) {
+      arr[i] = nearestPaletteHex(arr[i], palette);
+    });
+  }
+
+  function attachSegmentHandler(path, getHex, setHex, label) {
+    path.addEventListener("click", function(event) {
+      event.preventDefault();
+      const current = getHex();
+      if (event.shiftKey) {
+        setActivePaintHex(current);
+        return;
+      }
+      if (normalizeHex(current) === activePaintHex) return;
+      pushHistory();
+      setHex(activePaintHex);
+      path.setAttribute("fill", activePaintHex);
+      const info = findColorInfo(activePaintHex);
+      path.querySelector("title").textContent = label + "\nColor: " + info.name + " (" + activePaintHex + ")";
+    });
+  }
+
+  function addSegmentPath(d, hex, titleText, getHex, setHex) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    if (state.showBorders !== false) {
+      path.setAttribute("stroke", "#000000");
+      path.setAttribute("stroke-width", "1.5");
+    } else {
+      path.setAttribute("stroke", "none");
+      path.setAttribute("stroke-width", "0");
+    }
+    path.setAttribute("class", "segment-path");
+    path.setAttribute("fill-rule", "evenodd");
+    path.setAttribute("fill", hex);
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = titleText;
+    path.appendChild(title);
+    attachSegmentHandler(path, getHex, setHex, titleText.split("\n")[0]);
+    segmentsGroup.appendChild(path);
+  }
+
+  function buildConcentricWheel() {
+    const ringDefs = getRingRadii(state.ringCount);
+    ringDefs.forEach((ringDef, ringIndex) => {
+      ensureRing(ringIndex);
+      const ring = state.rings[ringIndex];
+      const segmentsCount = ring.segmentCount;
+      const angleStep = 360 / segmentsCount;
+      const dir = state.clockwise === false ? -1 : 1;
+      for (let i = 0; i < segmentsCount; i++) {
+        const startAngle = dir * i * angleStep;
+        const endAngle = dir * (i + 1) * angleStep;
+        const currentHex = getSegmentHex(ringIndex, i);
+        const info = findColorInfo(currentHex);
+        addSegmentPath(
+          describeArc(cx, cy, ringDef.r1, ringDef.r2, startAngle, endAngle),
+          currentHex,
+          ringDef.name + " - Segment " + (i + 1) + "\nColor: " + info.name + " (" + currentHex + ")",
+          () => getSegmentHex(ringIndex, i),
+          (hex) => {
+            state.rings[ringIndex].colors[i] = hex;
+          }
+        );
+      }
+    });
+  }
+
+  function buildSpiralWheel() {
+    const n = state.spiralSegmentCount;
+    const turns = spiralTurns(n);
+    const width = OUTER_R / turns;
+    const thetaMax = 2 * Math.PI * turns;
+    for (let i = 0; i < n; i++) {
+      const theta0 = state.spiralSpacing === "length"
+        ? spiralThetaForEqualLength(i, n, thetaMax)
+        : (i / n) * thetaMax;
+      const theta1 = state.spiralSpacing === "length"
+        ? spiralThetaForEqualLength(i + 1, n, thetaMax)
+        : ((i + 1) / n) * thetaMax;
+      const currentHex = getSpiralHex(i);
+      const info = findColorInfo(currentHex);
+      addSegmentPath(
+        describeSpiralSegment(theta0, theta1, thetaMax, width, state.clockwise === false),
+        currentHex,
+        "Spiral - Segment " + (i + 1) + "\nColor: " + info.name + " (" + currentHex + ")",
+        () => getSpiralHex(i),
+        (hex) => { state.spiralColors[i] = hex; }
+      );
+    }
+  }
+
+  function rebuildSvg() {
+    segmentsGroup.innerHTML = "";
+    if (state.geometry === "spiral") buildSpiralWheel();
+    else buildConcentricWheel();
+  }
+
+  function buildWheel() {
+    syncControlsFromState();
+    rebuildSvg();
+  }
+
+  function drawCurvedIndents() {
+    notchesGroup.innerHTML = "";
+    const outerR = OUTER_R;
+    const innerR = OUTER_R - 10.5;
+    const arcWidth = 7.16;
+
+    [0, 120, 240].forEach((centerAngle) => {
+      const startAngle = centerAngle - arcWidth / 2;
+      const endAngle = centerAngle + arcWidth / 2;
+      const pOuterStart = polarToCartesian(cx, cy, outerR, startAngle);
+      const pOuterEnd = polarToCartesian(cx, cy, outerR, endAngle);
+      const pInnerStart = polarToCartesian(cx, cy, innerR, startAngle);
+      const pInnerEnd = polarToCartesian(cx, cy, innerR, endAngle);
+      const d = [
+          "M", pInnerStart.x, pInnerStart.y,
+          "L", pOuterStart.x, pOuterStart.y,
+          "A", outerR, outerR, 0, 0, 1, pOuterEnd.x, pOuterEnd.y,
+          "L", pInnerEnd.x, pInnerEnd.y,
+          "A", innerR, innerR, 0, 0, 0, pInnerStart.x, pInnerStart.y,
+          "Z"
+      ].join(" ");
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", d);
+      path.setAttribute("fill", "#FFFFFF");
+      path.setAttribute("stroke", "#000000");
+      path.setAttribute("stroke-width", "0.75");
+      path.setAttribute("class", "notch-path");
+      notchesGroup.appendChild(path);
+    });
+  }
+
+  function downloadBlob(filename, blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.download = filename;
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function cloneWheelForExport() {
+    const svg = document.getElementById("wheel");
+    const clone = svg.cloneNode(true);
+    clone.removeAttribute("style");
+    clone.removeAttribute("id");
+    clone.setAttribute("viewBox", "0 0 600 600");
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    if (state.showNotches) {
+      clone.getElementById("notches-group").setAttribute("visibility", "visible");
+    } else {
+      clone.getElementById("notches-group").remove();
+    }
+    return clone;
+  }
+
+  function buildPrintDocument() {
+    const clone = cloneWheelForExport();
+    clone.setAttribute("width", "16cm");
+    clone.setAttribute("height", "16cm");
+    const svgMarkup = new XMLSerializer().serializeToString(clone);
+    return "<!DOCTYPE html>\n" +
+      "<html lang=\"en\">\n<head>\n" +
+      "<meta charset=\"UTF-8\">\n" +
+      "<title>Color wheel</title>\n" +
+      "<style>\n" +
+      "  @page { margin: 1cm; }\n" +
+      "  html, body {\n" +
+      "    margin: 0;\n" +
+      "    padding: 0;\n" +
+      "    background: #ffffff;\n" +
+      "    -webkit-print-color-adjust: exact;\n" +
+      "    print-color-adjust: exact;\n" +
+      "  }\n" +
+      "  svg {\n" +
+      "    display: block;\n" +
+      "    width: 16cm;\n" +
+      "    height: 16cm;\n" +
+      "  }\n" +
+      "</style>\n</head>\n<body>\n" +
+      svgMarkup + "\n" +
+      "</body>\n</html>\n";
+  }
+
+  function printWheel() {
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.cssText = "position:fixed;left:-100vw;top:0;width:16cm;height:16cm;border:0;";
+    document.body.appendChild(iframe);
+    const cleanup = function() {
+      if (iframe.parentNode) iframe.remove();
+    };
+    iframe.addEventListener("load", function() {
+      const frameWindow = iframe.contentWindow;
+      if (!frameWindow) {
+        cleanup();
+        return;
+      }
+      frameWindow.addEventListener("afterprint", cleanup);
+      frameWindow.focus();
+      frameWindow.print();
+      setTimeout(cleanup, 60000);
+    }, { once: true });
+    iframe.srcdoc = buildPrintDocument();
+  }
+
+  function validateHexList(colors, label) {
+    if (!Array.isArray(colors)) throw new Error(label + " is missing colors.");
+    colors.forEach((hex, colorIndex) => {
+      if (hex == null) return;
+      if (typeof hex !== "string" || !HEX_RE.test(hex.trim())) {
+        throw new Error(label + " color " + (colorIndex + 1) + " is not a #RRGGBB hex value.");
+      }
+    });
+  }
+
+  function validateRing(ring, index) {
+    if (!ring || typeof ring !== "object") throw new Error("Ring " + (index + 1) + " is invalid.");
+    const count = Number(ring.segmentCount);
+    if (!SEGMENT_OPTIONS.includes(count)) {
+      throw new Error("Ring " + (index + 1) + " has an unsupported segment count.");
+    }
+    validateHexList(ring.colors, "Ring " + (index + 1));
+  }
+
+  function validateWheelData(data) {
+    if (!data || typeof data !== "object") throw new Error("File is not a JSON object.");
+    if (data.version !== 1) throw new Error("Unsupported file version. Expected version 1.");
+    if (data.geometry !== "concentric" && data.geometry !== "spiral") {
+      throw new Error("Geometry must be concentric or spiral.");
+    }
+    const ringCount = Number(data.ringCount);
+    if (!Number.isInteger(ringCount) || ringCount < 1 || ringCount > MAX_RINGS) {
+      throw new Error("Ring count must be an integer from 1 to 8.");
+    }
+    if (!Array.isArray(data.rings) || data.rings.length < ringCount) {
+      throw new Error("File must contain at least " + ringCount + " rings.");
+    }
+    if (data.rings.length > MAX_RINGS) throw new Error("File has too many rings.");
+    data.rings.forEach(validateRing);
+    const spiralCount = Number(data.spiralSegmentCount);
+    if (!Number.isInteger(spiralCount) || spiralCount < SPIRAL_MIN || spiralCount > SPIRAL_MAX) {
+      throw new Error("Spiral segment count must be an integer from 12 to 96.");
+    }
+    validateHexList(data.spiralColors || [], "Spiral");
+    if (data.spiralSpacing != null && data.spiralSpacing !== "angle" && data.spiralSpacing !== "length") {
+      throw new Error("Spiral spacing must be angle or length.");
+    }
+    if (data.clockwise != null && data.clockwise !== true && data.clockwise !== false) {
+      throw new Error("Direction must be clockwise true or false.");
+    }
+  }
+
+  function applyLoadedData(data) {
+    restoreWheelState({
+      geometry: data.geometry,
+      ringCount: Number(data.ringCount),
+      rings: data.rings.map((ring) => ({
+        segmentCount: Number(ring.segmentCount),
+        colors: normalizeColorList(ring.colors, Number(ring.segmentCount))
+      })),
+      spiralSegmentCount: Number(data.spiralSegmentCount),
+      spiralColors: normalizeColorList(data.spiralColors, Number(data.spiralSegmentCount)),
+      clockwise: data.clockwise,
+      spiralSpacing: data.spiralSpacing,
+      paletteId: data.paletteId,
+      showNotches: data.showNotches,
+      showBorders: data.showBorders
+    });
+    buildWheel();
+    renderSwatches();
+  }
+
+  const WHEEL_JSON_TYPE = {
+    description: "Color Wheel JSON",
+    accept: { "application/x-color-wheel+json": [".json"] }
+  };
+
+  async function writeBlobToHandle(handle, blob) {
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+  }
+
+  function loadWheelFromText(text) {
+    const data = JSON.parse(text);
+    validateWheelData(data);
+    pushHistory();
+    applyLoadedData(data);
+  }
+
+  async function saveWheelJson() {
+    const blob = new Blob([JSON.stringify(serializeState(), null, 2)], { type: "application/json" });
+    if (typeof window.showSaveFilePicker !== "function") {
+      downloadBlob("color_wheel.json", blob);
+      return;
+    }
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: "color_wheel.json",
+        types: [WHEEL_JSON_TYPE]
+      });
+      await writeBlobToHandle(handle, blob);
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      alert("Could not save color wheel: " + (err && err.message ? err.message : err));
+    }
+  }
+
+  async function openWheelJson() {
+    if (typeof window.showOpenFilePicker !== "function") {
+      openJsonInput.click();
+      return;
+    }
+    try {
+      const handles = await window.showOpenFilePicker({
+        multiple: false,
+        types: [WHEEL_JSON_TYPE]
+      });
+      const file = await handles[0].getFile();
+      loadWheelFromText(await file.text());
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      alert("Could not open color wheel: " + (err && err.message ? err.message : err));
+    }
+  }
+
+  function buildSvgBlob() {
+    const clone = cloneWheelForExport();
+    clone.setAttribute("width", "16cm");
+    clone.setAttribute("height", "16cm");
+    const svgData = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+      new XMLSerializer().serializeToString(clone);
+    return new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+  }
+
+  function buildPngBlob() {
+    return new Promise(function(resolve, reject) {
+      const clone = cloneWheelForExport();
+      const sizePx = 1890;
+      clone.setAttribute("width", sizePx);
+      clone.setAttribute("height", sizePx);
+      const svgData = new XMLSerializer().serializeToString(clone);
+      const url = URL.createObjectURL(new Blob([svgData], { type: "image/svg+xml;charset=utf-8" }));
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement("canvas");
+        canvas.width = sizePx;
+        canvas.height = sizePx;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, sizePx, sizePx);
+        ctx.drawImage(img, 0, 0, sizePx, sizePx);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(function(blob) {
+          if (!blob) {
+            reject(new Error("Could not export PNG."));
+            return;
+          }
+          resolve(blob);
+        }, "image/png");
+      };
+      img.onerror = function() {
+        URL.revokeObjectURL(url);
+        reject(new Error("Could not export PNG."));
+      };
+      img.src = url;
+    });
+  }
+
+  async function exportWheelAs() {
+    if (typeof window.showSaveFilePicker !== "function") {
+      downloadBlob("color_wheel.svg", buildSvgBlob());
+      return;
+    }
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: "color_wheel.svg",
+        types: [
+          { description: "SVG", accept: { "image/x-color-wheel-svg": [".svg"] } },
+          { description: "PNG", accept: { "image/x-color-wheel-png": [".png"] } }
+        ]
+      });
+      const blob = /\.png$/i.test(handle.name) ? await buildPngBlob() : buildSvgBlob();
+      await writeBlobToHandle(handle, blob);
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      alert("Could not export color wheel: " + (err && err.message ? err.message : err));
+    }
+  }
+
+  populatePaletteSelect();
+  renderSwatches();
+  setActivePaintHex(activePaintHex);
+  drawCurvedIndents();
+  buildWheel();
+  updateHistoryButtons();
+
+  paletteSelect.addEventListener("change", function() {
+    const next = this.value;
+    if (next === state.paletteId) return;
+    pushHistory();
+    state.paletteId = next;
+    renderSwatches();
+  });
+
+  pickerBtn.addEventListener("click", function() {
+    if (typeof colorPicker.showPicker === "function") colorPicker.showPicker();
+    else colorPicker.click();
+  });
+  colorPicker.addEventListener("input", function() {
+    setActivePaintHex(this.value);
+  });
+
+  hexInput.addEventListener("change", function() {
+    const value = this.value.trim();
+    const withHash = value.charAt(0) === "#" ? value : "#" + value;
+    if (HEX_RE.test(withHash)) setActivePaintHex(withHash);
+    else this.value = activePaintHex;
+  });
+
+  document.getElementById("fill-wheel-btn").addEventListener("click", function() {
+    pushHistory();
+    fillVisibleFromPalette();
+    rebuildSvg();
+  });
+
+  document.getElementById("clear-wheel-btn").addEventListener("click", function() {
+    pushHistory();
+    clearAllWheelColors();
+    rebuildSvg();
+  });
+
+  document.getElementById("migrate-palette-btn").addEventListener("click", function() {
+    pushHistory();
+    migrateToSelectedPalette();
+    rebuildSvg();
+  });
+
+  undoBtn.addEventListener("click", undoLastChange);
+  redoBtn.addEventListener("click", redoLastChange);
+
+  document.addEventListener("keydown", function(event) {
+    if (!(event.ctrlKey || event.metaKey)) return;
+    if (event.target && event.target.matches("input, textarea")) return;
+    const key = event.key.toLowerCase();
+    if (key === "z" && event.shiftKey) {
+      event.preventDefault();
+      redoLastChange();
+    } else if (key === "z") {
+      event.preventDefault();
+      undoLastChange();
+    } else if (key === "y") {
+      event.preventDefault();
+      redoLastChange();
+    }
+  });
+
+  document.getElementById("save-json-btn").addEventListener("click", saveWheelJson);
+  document.getElementById("open-json-btn").addEventListener("click", openWheelJson);
+
+  openJsonInput.addEventListener("change", function() {
+    const file = this.files && this.files[0];
+    this.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function() {
+      try {
+        loadWheelFromText(reader.result);
+      } catch (err) {
+        alert("Could not open color wheel: " + err.message);
+      }
+    };
+    reader.onerror = function() {
+      alert("Could not read the selected file.");
+    };
+    reader.readAsText(file);
+  });
+
+  showNotchesCb.addEventListener("change", function() {
+    pushHistory();
+    state.showNotches = this.checked;
+    notchesGroup.setAttribute("visibility", this.checked ? "visible" : "hidden");
+  });
+
+  showBordersCb.addEventListener("change", function() {
+    pushHistory();
+    state.showBorders = this.checked;
+    rebuildSvg();
+  });
+
+  bindSegGroup("geometry-seg", "data-geometry",
+    (raw) => raw === state.geometry,
+    (raw) => { state.geometry = raw; },
+    true);
+
+  ringCountSelect.addEventListener("change", function() {
+    const next = parseInt(this.value, 10);
+    if (next === state.ringCount) return;
+    pushHistory();
+    state.ringCount = next;
+    for (let i = 0; i < state.ringCount; i++) ensureRing(i);
+    buildWheel();
+  });
+
+  spiralSlider.addEventListener("pointerdown", function() {
+    pushHistory();
+    spiralSliderHistoryPushed = true;
+  });
+  spiralSlider.addEventListener("input", function() {
+    if (!spiralSliderHistoryPushed) {
+      pushHistory();
+      spiralSliderHistoryPushed = true;
+    }
+    state.spiralSegmentCount = parseInt(this.value, 10);
+    spiralCountLabel.textContent = String(state.spiralSegmentCount);
+    rebuildSvg();
+  });
+  spiralSlider.addEventListener("change", function() {
+    spiralSliderHistoryPushed = false;
+  });
+
+  bindSegGroup("direction-seg", "data-direction",
+    (raw) => (raw !== "ccw") === (state.clockwise !== false),
+    (raw) => { state.clockwise = raw !== "ccw"; });
+
+  bindSegGroup("spacing-seg", "data-spacing",
+    (raw) => raw === state.spiralSpacing,
+    (raw) => { state.spiralSpacing = raw; });
+
+  document.getElementById("print-btn").addEventListener("click", printWheel);
+  document.getElementById("export-btn").addEventListener("click", exportWheelAs);
+</script>
+
+</body>
+</html>
