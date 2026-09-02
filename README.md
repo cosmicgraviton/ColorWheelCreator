@@ -1,8 +1,8 @@
 # Color Wheel Designer
 
-[Try it here!](https://cosmicgraviton.github.io/ColorWheelCreator/)
+[Try it here!](https://cosmicgraviton.github.io/ColorWheelDesigner/)
 
-A browser tool for designing printable color wheels for the **[ColorComposer HackPack](https://www.crunchlabs.com/products/color-composer)**. Open `index.html` in a browser [here](https://cosmicgraviton.github.io/ColorWheelCreator/).
+A browser tool for designing printable color wheels for the **[ColorComposer HackPack](https://www.crunchlabs.com/products/color-composer)**. Open `index.html` in a browser [here](https://cosmicgraviton.github.io/ColorWheelDesigner/).
 
 The color wheel is a disc you paint, save, and export. Print the SVG at its native **16 cm** size or print the PNG at 300 dpi so the disc and its three alignment notches match the physical player.
 
